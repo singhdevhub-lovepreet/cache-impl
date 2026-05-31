@@ -12,3 +12,8 @@ public class App {
     SpringApplication.run(App.class, args);
   }
 }
+// controller, repository, service (DTOs, DAOs), Repository
+
+// API <-> Usercontroller [UserRequest] <-> Userservice <-> UserRepository
+
+// how to user docker compose,
