@@ -1,11 +1,12 @@
 package cache.service;
 
 import cache.entity.User;
+import cache.event.UserCreatedEvent;
 import cache.repository.UserRepository;
-import io.netty.channel.SimpleUserEventChannelHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -16,9 +17,10 @@ import java.util.concurrent.TimeUnit;
 public class UserService {
 
     // read from DB, read it from cache first, if not present then read from DB
-    private UserRepository userRepository;
-    private CacheManager cacheManager;
-    private RedisTemplate<String, Object> redisTemplate;
+    private final UserRepository userRepository;
+    private final CacheManager cacheManager;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final String REDIS_KEY_PREFIX = "user:";
     private static final long REDIS_TTL_MINUTES = 30;
@@ -39,6 +41,9 @@ public class UserService {
                 TimeUnit.MINUTES
         );
         System.out.println("User is set in redis");
+
+        eventPublisher.publishEvent(new UserCreatedEvent(this, saved));
+
         return saved;
     }
 

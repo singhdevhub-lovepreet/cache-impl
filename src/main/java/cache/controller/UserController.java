@@ -4,14 +4,17 @@ import cache.entity.User;
 import cache.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@RestController("/v1/users")
+@RestController
+@RequestMapping("/v1/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    UserService userService;
+    private final UserService userService;
 
     @PostMapping
     public ResponseEntity<User> createUser(@RequestBody User user){

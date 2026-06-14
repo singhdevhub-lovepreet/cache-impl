@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .controls { margin: 20px 0; }
+        button { background: #6db33f; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+        button:hover { background: #5a9e34; }
+        button.disconnect { background: #f44336; }
+        button.disconnect:hover { background: #d32f2f; }
+        .status { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .status.connected { background: #e8f5e9; color: #2e7d32; }
+        .status.disconnected { background: #fce4ec; color: #c62828; }
+        .event-log { background: white; border-radius: 8px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-height: 200px; max-height: 500px; overflow-y: auto; }
+        .event-entry { font-family: monospace; font-size: 13px; padding: 8px; margin: 4px 0; background: #f5f5f5; border-radius: 4px; border-left: 4px solid #6db33f; }
+        .event-entry .time { color: #999; font-size: 11px; }
+        .hint { background: #fff3e0; padding: 12px; border-radius: 4px; margin: 16px 0; font-size: 14px; }
+        a { color: #6db33f; }
+        pre { background: #333; color: #8bc34a; padding: 12px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <p><a href="/">&larr; Back to Home</a></p>
+    <h1>Server-Sent Events (SSE) Demo</h1>
+    <p>One-way streaming from server to client over plain HTTP.</p>
+
+    <div class="controls">
+        <button onclick="subscribe()" id="btn-subscribe">Subscribe</button>
+        <button onclick="disconnect()" id="btn-disconnect" class="disconnect" style="display:none;">Disconnect</button>
+        <span id="status" class="status disconnected">Disconnected</span>
+    </div>
+
+    <div class="hint">
+        <strong>To trigger an event,</strong> create a user in another terminal:
+        <pre>curl -X POST http://localhost:8080/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@test.com"}'</pre>
+    </div>
+
+    <h3>Event Log</h3>
+    <div class="event-log" id="event-log">
+        <p style="color: #999;">No events yet. Subscribe and create a user to see events.</p>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        function subscribe() {
+            if (eventSource) return;
+
+            eventSource = new EventSource('/api/sse/subscribe');
+
+            eventSource.addEventListener('user-created', function(e) {
+                const data = JSON.parse(e.data);
+                addEvent('user-created', data);
+            });
+
+            eventSource.onopen = function() {
+                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('btn-subscribe').style.display = 'none';
+                document.getElementById('btn-disconnect').style.display = 'inline';
+                addEvent('system', { message: 'SSE connection established' });
+            };
+
+            eventSource.onerror = function() {
+                if (eventSource.readyState === EventSource.CLOSED) {
+                    updateDisconnected();
+                } else {
+                    addEvent('system', { message: 'Connection error - reconnecting...' });
+                }
+            };
+        }
+
+        function disconnect() {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+                updateDisconnected();
+                addEvent('system', { message: 'Disconnected by user' });
+            }
+        }
+
+        function updateDisconnected() {
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Disconnected';
+            document.getElementById('btn-subscribe').style.display = 'inline';
+            document.getElementById('btn-disconnect').style.display = 'none';
+        }
+
+        function addEvent(type, data) {
+            const log = document.getElementById('event-log');
+            if (log.querySelector('p')) log.innerHTML = '';
+
+            const entry = document.createElement('div');
+            entry.className = 'event-entry';
+            const now = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="time">${now}</span> <strong>[${type}]</strong><br>${JSON.stringify(data, null, 2)}`;
+            log.prepend(entry);
+        }
+    </script>
+</body>
+</html>

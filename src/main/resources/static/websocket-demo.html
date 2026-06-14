@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .controls { margin: 20px 0; }
+        button { background: #6db33f; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+        button:hover { background: #5a9e34; }
+        button.disconnect { background: #f44336; }
+        button.disconnect:hover { background: #d32f2f; }
+        .status { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+        .status.connected { background: #e8f5e9; color: #2e7d32; }
+        .status.disconnected { background: #fce4ec; color: #c62828; }
+        .ping-area { background: white; border-radius: 8px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .ping-area input { padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; width: 300px; margin-right: 10px; }
+        .message-log { background: white; border-radius: 8px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-height: 200px; max-height: 500px; overflow-y: auto; }
+        .msg { font-family: monospace; font-size: 13px; padding: 8px; margin: 4px 0; border-radius: 4px; }
+        .msg.sent { background: #e3f2fd; border-left: 4px solid #2196f3; }
+        .msg.received { background: #f5f5f5; border-left: 4px solid #6db33f; }
+        .msg.notification { background: #fff8e1; border-left: 4px solid #ff9800; }
+        .msg.system { background: #fce4ec; border-left: 4px solid #999; }
+        .msg .time { color: #999; font-size: 11px; }
+        .hint { background: #fff3e0; padding: 12px; border-radius: 4px; margin: 16px 0; font-size: 14px; }
+        a { color: #6db33f; }
+        pre { background: #333; color: #8bc34a; padding: 12px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <p><a href="/">&larr; Back to Home</a></p>
+    <h1>WebSocket (STOMP) Demo</h1>
+    <p>Full-duplex bidirectional communication over WebSocket.</p>
+
+    <div class="controls">
+        <button onclick="connect()" id="btn-connect">Connect</button>
+        <button onclick="disconnect()" id="btn-disconnect" class="disconnect" style="display:none;">Disconnect</button>
+        <span id="status" class="status disconnected">Disconnected</span>
+    </div>
+
+    <div class="ping-area">
+        <h3>Send Ping</h3>
+        <input type="text" id="pingInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendPing()">
+        <button onclick="sendPing()" id="btn-ping" disabled>Send Ping</button>
+    </div>
+
+    <div class="hint">
+        <strong>User notifications:</strong> Create a user to see a push notification appear here:
+        <pre>curl -X POST http://localhost:8080/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Bob","email":"bob@test.com"}'</pre>
+    </div>
+
+    <h3>Message Log</h3>
+    <div class="message-log" id="message-log">
+        <p style="color: #999;">No messages yet. Connect and send a ping.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <script>
+        let stompClient = null;
+
+        function connect() {
+            const socket = new SockJS('/ws');
+            stompClient = new StompJs.Client({
+                webSocketFactory: () => socket,
+                reconnectDelay: 5000,
+                onConnect: function() {
+                    document.getElementById('status').className = 'status connected';
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('btn-connect').style.display = 'none';
+                    document.getElementById('btn-disconnect').style.display = 'inline';
+                    document.getElementById('btn-ping').disabled = false;
+                    addMessage('system', 'WebSocket connected via SockJS + STOMP');
+
+                    stompClient.subscribe('/topic/pong', function(msg) {
+                        addMessage('received', JSON.parse(msg.body));
+                    });
+
+                    stompClient.subscribe('/topic/users', function(msg) {
+                        addMessage('notification', JSON.parse(msg.body));
+                    });
+                },
+                onDisconnect: function() {
+                    updateDisconnected();
+                },
+                onStompError: function(frame) {
+                    addMessage('system', 'STOMP error: ' + frame.headers['message']);
+                }
+            });
+
+            stompClient.activate();
+        }
+
+        function disconnect() {
+            if (stompClient) {
+                stompClient.deactivate();
+                stompClient = null;
+                updateDisconnected();
+                addMessage('system', 'Disconnected by user');
+            }
+        }
+
+        function updateDisconnected() {
+            document.getElementById('status').className = 'status disconnected';
+            document.getElementById('status').textContent = 'Disconnected';
+            document.getElementById('btn-connect').style.display = 'inline';
+            document.getElementById('btn-disconnect').style.display = 'none';
+            document.getElementById('btn-ping').disabled = true;
+        }
+
+        function sendPing() {
+            const input = document.getElementById('pingInput');
+            const message = input.value.trim() || 'Hello!';
+
+            if (stompClient && stompClient.connected) {
+                stompClient.publish({
+                    destination: '/app/ping',
+                    body: JSON.stringify({ message: message })
+                });
+                addMessage('sent', { type: 'PING', message: message });
+                input.value = '';
+            }
+        }
+
+        function addMessage(type, data) {
+            const log = document.getElementById('message-log');
+            if (log.querySelector('p')) log.innerHTML = '';
+
+            const entry = document.createElement('div');
+            entry.className = 'msg ' + type;
+            const now = new Date().toLocaleTimeString();
+            const label = type === 'sent' ? 'SENT' : type === 'received' ? 'PONG' : type === 'notification' ? 'USER EVENT' : 'SYSTEM';
+            const content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+            entry.innerHTML = `<span class="time">${now}</span> <strong>[${label}]</strong><br><pre style="margin:4px 0;background:transparent;color:inherit;padding:0;">${content}</pre>`;
+            log.prepend(entry);
+        }
+    </script>
+</body>
+</html>

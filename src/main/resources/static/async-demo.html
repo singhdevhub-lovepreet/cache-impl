@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Async Demo</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .controls { margin: 20px 0; }
+        button { background: #6db33f; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 10px; }
+        button:hover { background: #5a9e34; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result-card { background: white; border-radius: 8px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .result-card h3 { margin-top: 0; }
+        .time { font-size: 28px; font-weight: bold; }
+        .time.fast { color: #4caf50; }
+        .time.slow { color: #f44336; }
+        .log-entry { font-family: monospace; font-size: 13px; padding: 4px 0; border-bottom: 1px solid #eee; }
+        .explanation { background: #e8f5e9; padding: 12px; border-radius: 4px; margin-top: 12px; font-size: 14px; }
+        a { color: #6db33f; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #6db33f; border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 8px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <p><a href="/">&larr; Back to Home</a></p>
+    <h1>Async Programming Demo</h1>
+    <p>Three tasks: Send Email (2s) + Write Audit (1.5s) + External Sync (3s)</p>
+
+    <div class="controls">
+        <button onclick="runDemo('sync')" id="btn-sync">Synchronous (~6.5s)</button>
+        <button onclick="runDemo('async')" id="btn-async">Asynchronous (~3s)</button>
+        <span id="loading" style="display:none;">Running<span class="spinner"></span></span>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        async function runDemo(mode) {
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+            document.getElementById('loading').style.display = 'inline';
+
+            const clientStart = performance.now();
+
+            try {
+                const response = await fetch(`/api/async-demo/${mode}`);
+                const data = await response.json();
+                const clientTime = Math.round(performance.now() - clientStart);
+
+                const card = document.createElement('div');
+                card.className = 'result-card';
+
+                const timeClass = data.totalTimeMs < 4000 ? 'fast' : 'slow';
+
+                card.innerHTML = `
+                    <h3>${data.mode}</h3>
+                    <div class="time ${timeClass}">${data.totalTimeMs}ms</div>
+                    <p style="color:#999;">Client measured: ${clientTime}ms</p>
+                    <div>${data.results.map(r => `<div class="log-entry">${r}</div>`).join('')}</div>
+                    <div class="explanation">${data.explanation}</div>
+                `;
+
+                document.getElementById('results').prepend(card);
+            } catch (e) {
+                alert('Error: ' + e.message);
+            }
+
+            buttons.forEach(b => b.disabled = false);
+            document.getElementById('loading').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

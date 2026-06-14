@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spring Boot Teaching Demos</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; background: #f5f5f5; }
+        h1 { color: #333; border-bottom: 2px solid #6db33f; padding-bottom: 10px; }
+        .card { background: white; border-radius: 8px; padding: 24px; margin: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { margin-top: 0; color: #6db33f; }
+        .card p { color: #666; line-height: 1.6; }
+        a.demo-link { display: inline-block; background: #6db33f; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; margin-top: 8px; }
+        a.demo-link:hover { background: #5a9e34; }
+        .tag { display: inline-block; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-size: 12px; margin-right: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Spring Boot Teaching Demos</h1>
+    <p>Interactive demos for WebSocket, Async Programming, and Server-Sent Events.</p>
+
+    <div class="card">
+        <h2>1. Async Programming</h2>
+        <span class="tag">CompletableFuture</span>
+        <span class="tag">@Async</span>
+        <span class="tag">ThreadPool</span>
+        <p>Compare synchronous vs asynchronous execution. See how three tasks taking 2s + 1.5s + 3s
+           complete in ~6.5s sequentially but only ~3s in parallel. Also demonstrates CompletableFuture
+           composition with <code>thenApply</code> and <code>thenCombine</code>.</p>
+        <a class="demo-link" href="/async-demo.html">Open Async Demo</a>
+    </div>
+
+    <div class="card">
+        <h2>2. Server-Sent Events (SSE)</h2>
+        <span class="tag">EventSource</span>
+        <span class="tag">SseEmitter</span>
+        <span class="tag">One-way streaming</span>
+        <p>Subscribe to a server event stream. When a new user is created (via curl or API), the event
+           is pushed to all connected browsers over a single long-lived HTTP connection. Server-to-client only.</p>
+        <a class="demo-link" href="/sse-demo.html">Open SSE Demo</a>
+    </div>
+
+    <div class="card">
+        <h2>3. WebSocket (STOMP)</h2>
+        <span class="tag">SockJS</span>
+        <span class="tag">STOMP</span>
+        <span class="tag">Bidirectional</span>
+        <p>Full-duplex communication over WebSocket. Send a ping message and get a pong response.
+           Also receives real-time notifications when users are created. Open in two tabs to see broadcasts.</p>
+        <a class="demo-link" href="/websocket-demo.html">Open WebSocket Demo</a>
+    </div>
+
+    <div class="card" style="background: #f9fbe7;">
+        <h2>Integration Test</h2>
+        <p>Open both SSE and WebSocket demos side by side, then create a user:</p>
+        <pre style="background: #333; color: #8bc34a; padding: 12px; border-radius: 4px; overflow-x: auto;">curl -X POST http://localhost:8080/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Alice","email":"alice@test.com"}'</pre>
+        <p>Both pages will update simultaneously via the event bridge:<br>
+        <code>UserService -> ApplicationEvent -> EventListener -> [WebSocket, SSE]</code></p>
+    </div>
+</body>
+</html>
