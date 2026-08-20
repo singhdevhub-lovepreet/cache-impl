@@ -12,7 +12,6 @@ import java.util.Map;
 public class FaqController {
 
     private static final Logger log = LoggerFactory.getLogger(FaqController.class);
-    private static final int VECTOR_SIZE = 1536; // text-embedding-3-small
 
     private final EmbeddingService embeddingService;
     private final QdrantService qdrantService;
@@ -30,12 +29,12 @@ public class FaqController {
     public Map<String, Object> seedFaqs() {
         List<Faq> faqs = bookingFaqs();
 
-        // 1. Ensure collection exists
-        qdrantService.createCollectionIfNotExists(VECTOR_SIZE);
-
-        // 2. Generate embeddings for all questions in one batch call
+        // 1. Generate embeddings for all questions in one batch call
         List<String> questions = faqs.stream().map(Faq::getQuestion).toList();
         List<List<Double>> embeddings = embeddingService.embedBatch(questions);
+
+        // 2. Ensure collection exists (dimension follows the embedding model)
+        qdrantService.createCollectionIfNotExists(embeddings.get(0).size());
 
         // 3. Upsert into Qdrant
         qdrantService.upsertFaqs(faqs, embeddings);
